@@ -15,7 +15,6 @@ spec:
     - name: app-branch
       value: "main" # Application branch
     - name: pipeline-branch
-      # value: "ci-updates" # Pipeline branch
       value: "main" # Pipeline branch
     - name: image
       value: "your-registry/your-app"
