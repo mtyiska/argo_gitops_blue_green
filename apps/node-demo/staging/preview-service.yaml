@@ -9,7 +9,7 @@ spec:
     app: node-api
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 4400
       protocol: TCP
       nodePort: 30200
   type: NodePort

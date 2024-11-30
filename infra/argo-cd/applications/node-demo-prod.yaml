@@ -1,13 +1,13 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argo_gitops_blue_green-prod
+  name: argo-gitops-blue-green-prod
   namespace: argocd
 spec:
   destination:
     namespace: prod
     server: https://kubernetes.default.svc
-  project: argo_gitops_blue_green
+  project: demo-node-api
   source:
     path: apps/node-demo/prod
     repoURL: git@github.com:mtyiska/argo_gitops_blue_green.git

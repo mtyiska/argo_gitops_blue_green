@@ -4,11 +4,11 @@ metadata:
   name: node-api-service
 spec:
   selector:
-    app: node-api-service
+    app: node-api
   ports:
   - name: "80"
     nodePort: 30100
     port: 80
     protocol: TCP
-    targetPort: 80
+    targetPort: 4400
   type: NodePort
