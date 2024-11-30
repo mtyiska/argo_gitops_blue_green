@@ -7,7 +7,7 @@ spec:
   destination:
     namespace: staging
     server: https://kubernetes.default.svc
-  project: argo_gitops_blue_green
+  project: demo-node-api
   source:
     path: apps/node-demo/staging
     repoURL: git@github.com:mtyiska/argo_gitops_blue_green.git

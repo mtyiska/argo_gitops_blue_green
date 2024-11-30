@@ -6,7 +6,7 @@ metadata:
 spec:
   description: Argo Gitops Project
   sourceRepos:
-    - git@github.com:mtyiska/demo-node-api.git
+    - git@github.com:mtyiska/argo_gitops_blue_green.git
   destinations:
     - namespace: staging
       server: https://kubernetes.default.svc
