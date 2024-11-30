@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argo_gitops_blue_green-staging
+  name: argo-gitops-blue-green-staging
   namespace: argocd
 spec:
   destination:

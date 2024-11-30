@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   labels:
-    app: node-api
+    app: node-api  # Service selector must match
     tier: front
   name: node-api
 spec:
@@ -23,7 +23,7 @@ spec:
         tier: front
     spec:
       containers:
-      - image: measureapp/demo-node-api
+      - image: measureapp/demo-node-api:0.0.1
         name: demo-node-api
         imagePullPolicy: Always
         resources: 
@@ -33,3 +33,5 @@ spec:
           limits: 
             cpu: "250m"
             memory: "128Mi"
+      imagePullSecrets:
+      - name: docker-registry-creds 
