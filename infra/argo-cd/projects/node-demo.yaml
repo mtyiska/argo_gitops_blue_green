@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: demo-node-api
+  namespace: argocd
+spec:
+  description: Argo Gitops Project
+  sourceRepos:
+    - git@github.com:mtyiska/demo-node-api.git
+  destinations:
+    - namespace: staging
+      server: https://kubernetes.default.svc
+    - namespace: prod
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

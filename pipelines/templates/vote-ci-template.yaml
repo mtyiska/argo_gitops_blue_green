@@ -1,0 +1,278 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: node-api-ci-template
+  namespace: argo-events
+spec:
+  entrypoint: main
+  serviceAccountName: default
+  arguments:
+    parameters:
+    - name: app-repo-url
+      value: "https://github.com/your-username/app.git" # Application repo
+    - name: pipeline-repo-url
+      value: "https://github.com/your-username/pipeline.git" # Pipeline repo
+    - name: app-branch
+      value: "main" # Application branch
+    - name: pipeline-branch
+      # value: "ci-updates" # Pipeline branch
+      value: "main" # Pipeline branch
+    - name: image
+      value: "your-registry/your-app"
+    - name: dockerfile
+      value: "Dockerfile"
+
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Mi
+
+  volumes:
+  - name: docker-config
+    secret:
+      secretName: docker-registry-creds
+      items:
+        - key: .dockerconfigjson
+          path: config.json
+
+  templates:
+  - name: main
+    inputs:
+      parameters:
+      - name: app-repo-url
+      - name: pipeline-repo-url
+      - name: app-branch
+      - name: pipeline-branch
+      - name: image
+      - name: dockerfile
+    steps:
+    - - name: clone-app
+        template: clone-app
+        arguments:
+          parameters:
+          - name: repo-url
+            value: "{{inputs.parameters.app-repo-url}}"
+          - name: branch
+            value: "{{inputs.parameters.app-branch}}"
+    - - name: build
+        template: build
+    - - name: test
+        template: test
+    - - name: imagebuild
+        template: imagebuild
+        arguments:
+          parameters:
+          - name: commit-sha
+            value: "{{steps.clone-app.outputs.parameters.commit-sha}}"
+          - name: image
+            value: "{{inputs.parameters.image}}"
+          - name: dockerfile
+            value: "{{inputs.parameters.dockerfile}}"
+    - - name: clone-pipeline
+        template: clone-pipeline
+        arguments:
+          parameters:
+          - name: repo-url
+            value: "{{inputs.parameters.pipeline-repo-url}}"
+          - name: branch
+            value: "{{inputs.parameters.pipeline-branch}}"
+    - - name: update-kustomize
+        template: update-kustomize
+        arguments:
+          parameters:
+          - name: image
+            value: "{{inputs.parameters.image}}"
+          - name: commit-sha
+            value: "{{steps.clone-app.outputs.parameters.commit-sha}}"
+    - - name: commit-changes
+        template: commit-changes
+        arguments:
+          parameters:
+          - name: branch
+            value: "{{inputs.parameters.pipeline-branch}}"
+
+  # Clone the application repository
+  - name: clone-app
+    inputs:
+      parameters:
+      - name: repo-url
+      - name: branch
+    script:
+      image: alpine/git
+      command: [sh]
+      source: |
+        #!/bin/sh
+        echo "Setting up Git credentials..."
+        mkdir -p /workspace
+        git config --global credential.helper store
+        echo "https://$(cat /mnt/git/username):$(cat /mnt/git/token)@github.com" > ~/.git-credentials
+
+        echo "Cloning repository..."
+        git clone --branch {{inputs.parameters.branch}} {{inputs.parameters.repo-url}} /workspace
+        cd /workspace
+        COMMIT_SHA=$(git rev-parse --short HEAD)
+        echo $COMMIT_SHA > /workspace/commit-sha.txt
+      volumeMounts:
+      - name: git-credentials
+        mountPath: /mnt/git
+      - name: workspace
+        mountPath: /workspace
+    volumes:
+    - name: git-credentials
+      secret:
+        secretName: git-credentials
+    outputs:
+      parameters:
+      - name: commit-sha
+        valueFrom:
+          path: /workspace/commit-sha.txt
+
+  # Build task
+  - name: build
+    script:
+      image: python:3.9
+      command: ["sh"]
+      source: |
+        cd /workspace
+        pip install -r requirements.txt
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+
+  # Test task
+  - name: test
+    script:
+      image: python:3.9
+      command: ["sh"]
+      source: |
+        cd /workspace
+        pip install nose
+        nosetests
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+
+  # Build and publish Docker image
+  - name: imagebuild
+    inputs:
+      parameters:
+      - name: commit-sha
+      - name: image
+      - name: dockerfile
+    container:
+      image: gcr.io/kaniko-project/executor:latest
+      command: ["/kaniko/executor"]
+      args:
+      - --dockerfile=/workspace/{{inputs.parameters.dockerfile}}
+      - --context=/workspace
+      - --destination={{inputs.parameters.image}}:{{inputs.parameters.commit-sha}}
+      - --force
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+      - name: docker-config
+        mountPath: /kaniko/.docker
+      env:
+      - name: DOCKER_CONFIG
+        value: /kaniko/.docker
+
+  # Clone pipeline repository
+  - name: clone-pipeline
+    inputs:
+      parameters:
+      - name: repo-url
+      - name: branch
+    script:
+      image: alpine/git
+      command: [sh]
+      source: |
+        #!/bin/sh
+        echo "Setting up Git credentials..."
+        mkdir -p /workspace/pipeline
+        git config --global credential.helper store
+        echo "https://$(cat /mnt/git/username):$(cat /mnt/git/token)@github.com" > ~/.git-credentials
+
+        echo "Cloning pipeline repository into /workspace/pipeline..."
+        git clone --branch {{inputs.parameters.branch}} {{inputs.parameters.repo-url}} /workspace/pipeline
+        cd /workspace/pipeline
+
+        echo "Setting Git user information for commits..."
+        git config user.name "CI Pipeline Bot"
+        git config user.email "ci-pipeline@example.com"
+
+        COMMIT_SHA=$(git rev-parse --short HEAD)
+        echo $COMMIT_SHA > /workspace/pipeline/commit-sha.txt
+      volumeMounts:
+      - name: git-credentials
+        mountPath: /mnt/git
+      - name: workspace
+        mountPath: /workspace
+    volumes:
+    - name: git-credentials
+      secret:
+        secretName: git-credentials
+    outputs:
+      parameters:
+      - name: commit-sha
+        valueFrom:
+          path: /workspace/pipeline/commit-sha.txt
+      
+
+  # Update Kustomize manifest
+  - name: update-kustomize
+    inputs:
+      parameters:
+      - name: image
+      - name: commit-sha # Add this
+    script:
+      image: alpine
+      command: [sh]
+      source: |
+        echo "Updating Kustomize files with image {{inputs.parameters.image}} and commit {{inputs.parameters.commit-sha}}..."
+        echo "Using image: {{inputs.parameters.image}} and tag: {{inputs.parameters.commit-sha}}"
+        sed -i "s|newTag:.*|newTag: {{inputs.parameters.commit-sha}}|" /workspace/pipeline/apps/node-demo/staging/kustomization.yaml
+        sed -i "s|newTag:.*|newTag: {{inputs.parameters.commit-sha}}|" /workspace/pipeline/apps/node-demo/prod/kustomization.yaml
+        echo "Kustomize file updated."
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+
+
+  # Commit changes back to pipeline repository
+  - name: commit-changes
+    inputs:
+      parameters:
+      - name: branch
+    script:
+      image: alpine/git
+      command: [sh]
+      source: |
+        #!/bin/sh
+        echo "Setting up Git author information..."
+        git config --global user.name "mtyiska"
+        git config --global user.email "mtyiska@gmail.com"
+
+        echo "Configuring Git credentials..."
+        echo "https://$(cat /mnt/git/username):$(cat /mnt/git/token)@github.com" > ~/.git-credentials
+        git config --global credential.helper store
+
+        echo "Committing changes..."
+        cd /workspace/pipeline
+        git add .
+        git commit -m "ci: Update image tag for deployment"
+
+        echo "Pushing changes to {{inputs.parameters.branch}}..."
+        git push origin {{inputs.parameters.branch}}
+      volumeMounts:
+      - name: git-credentials
+        mountPath: /mnt/git
+      - name: workspace
+        mountPath: /workspace
+    volumes:
+    - name: git-credentials
+      secret:
+        secretName: git-credentials

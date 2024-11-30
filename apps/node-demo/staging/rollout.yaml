@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  labels:
+    app: node-api
+    tier: front
+  name: node-api
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: node-api
+  strategy:
+    blueGreen:
+      autoPromotionEnabled: true
+      autoPromotionSeconds: 30
+      activeService: node-api-service
+      previewService: node-api-preview-service
+  template:
+    metadata:
+      labels:
+        app: node-api
+        tier: front
+    spec:
+      containers:
+      - image: measureapp/demo-node-api
+        name: demo-node-api
+        imagePullPolicy: Always
+        resources: 
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits: 
+            cpu: "250m"
+            memory: "128Mi"

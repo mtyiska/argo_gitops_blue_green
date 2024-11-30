@@ -1,0 +1,41 @@
+# argo-events/sensor.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: polling-sensor
+  namespace: argo-events
+spec:
+  template:
+    serviceAccountName: operate-workflow-sa
+  dependencies:
+    - name: poll-github
+      eventSourceName: webhook
+      eventName: github
+  triggers:
+    - template:
+        name: launch-node-api-ci
+        argoWorkflow:
+          operation: submit
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: ci-pipeline-
+              spec:
+                workflowTemplateRef:
+                  name: node-api-ci-template
+                arguments:
+                  parameters:
+                  - name: app-repo-url
+                    value: "https://github.com/mtyiska/demo-node-api.git" # Application repo
+                  - name: pipeline-repo-url
+                    value: "https://github.com/mtyiska/argo-boot.git" # Pipeline repo
+                  - name: app-branch
+                    value: "main" # Application branch
+                  - name: pipeline-branch
+                    value: "main" # Pipeline branch
+                  - name: image
+                    value: "measureapp/node-api"
+                  - name: dockerfile
+                    value: "Dockerfile"

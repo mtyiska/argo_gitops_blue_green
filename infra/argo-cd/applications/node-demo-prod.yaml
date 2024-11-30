@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo_gitops_blue_green-prod
+  namespace: argocd
+spec:
+  destination:
+    namespace: prod
+    server: https://kubernetes.default.svc
+  project: argo_gitops_blue_green
+  source:
+    path: apps/node-demo/prod
+    repoURL: git@github.com:mtyiska/argo_gitops_blue_green.git
+    targetRevision: release
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

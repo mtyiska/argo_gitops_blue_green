@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: github-polling-job
+  namespace: argo-events  # Add this line
+spec:
+  schedule: "* * * * *"  # Poll every minute
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          imagePullSecrets:
+          - name: docker-registry-creds
+          containers:
+          - name: poller
+            image: measureapp/github-poller:0.0.1 
+            env:
+            - name: GITHUB_API_URL
+              value: "https://api.github.com/repos/mtyiska/demo-node-api/commits"
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-token-secret
+                  key: token
+            - name: LAST_COMMIT_FILE
+              value: "/data/last_commit.txt"
+            - name: ARGO_EVENT_SOURCE_URL
+              value: "http://webhook-eventsource-svc.argo-events.svc.cluster.local:12000/github"
+            volumeMounts:
+            - name: commit-storage
+              mountPath: /data
+          restartPolicy: OnFailure
+          volumes:
+          - name: commit-storage
+            persistentVolumeClaim:
+              claimName: poller-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: poller-pvc
+  namespace: argo-events  # Add this line
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+

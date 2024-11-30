@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: node-api-ingress
+  namespace: staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx 
+  rules:
+  - host: staging.node-api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: node-api-service
+            port:
+              number: 80
+      - path: /preview    # Preview service
+        pathType: Prefix
+        backend:
+          service:
+            name: node-api-preview-service
+            port:
+              number: 80

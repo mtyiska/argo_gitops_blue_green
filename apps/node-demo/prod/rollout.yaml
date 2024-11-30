@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: node-api
+  namespace: prod
+  labels:
+    app: node-api
+    tier: front
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: node-api
+  strategy:
+    canary:
+      canaryService: node-api-preview-service         # Service for canary pods
+      stableService: node-api-service                  # Service for stable pods
+      trafficRouting:
+        nginx:
+          stableIngress: node-api-ingress              # The stable ingress
+      steps:                               # Canary rollout steps
+      - setCanaryScale:
+          replicas: 3                      # Scale canary to 3 replicas
+      - setWeight: 20                      # Send 20% traffic to canary
+      - pause:
+          duration: 10s                    # Pause for 10 seconds
+      - setWeight: 40                      # Send 40% traffic to canary
+      - pause:
+          duration: 10s
+      - setWeight: 60                      # Send 60% traffic to canary
+      - pause:
+          duration: 10s
+      - setWeight: 80                      # Send 80% traffic to canary
+      - pause:
+          duration: 10s
+      - setWeight: 100                     # Send 100% traffic to canary
+  template:
+    metadata:
+      labels:
+        app: node-api
+        tier: front
+    spec:
+      containers:
+      - image: measureapp/demo-node-api
+        name: demo-node-api
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "128Mi"
