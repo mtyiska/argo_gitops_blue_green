@@ -17,5 +17,5 @@ labels:
 images:
 - name: measureapp/demo-node-api:0.0.1
   newName: measureapp/demo-node-api
-  newTag: 0.0.1
+  newTag: 10aad06
 
