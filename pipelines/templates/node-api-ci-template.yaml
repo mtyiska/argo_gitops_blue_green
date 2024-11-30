@@ -131,14 +131,15 @@ spec:
         valueFrom:
           path: /workspace/commit-sha.txt
 
-  # Build task
+   # Build task
   - name: build
     script:
-      image: python:3.9
+      image: node:18  # Using Node.js 16 base image
       command: ["sh"]
       source: |
         cd /workspace
-        pip install -r requirements.txt
+        npm install  # Install dependencies
+        npm run build  # Run the build script defined in package.json
       volumeMounts:
       - name: workspace
         mountPath: /workspace
@@ -146,15 +147,16 @@ spec:
   # Test task
   - name: test
     script:
-      image: python:3.9
+      image: node:18  # Using Node.js 16 base image
       command: ["sh"]
       source: |
         cd /workspace
-        pip install nose
-        nosetests
+        npm install  # Install dependencies
+        npm run test:ci  # Run the test script defined in package.json
       volumeMounts:
       - name: workspace
         mountPath: /workspace
+
 
   # Build and publish Docker image
   - name: imagebuild
