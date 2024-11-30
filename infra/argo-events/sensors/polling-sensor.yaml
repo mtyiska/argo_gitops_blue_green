@@ -30,7 +30,7 @@ spec:
                   - name: app-repo-url
                     value: "https://github.com/mtyiska/demo-node-api.git" # Application repo
                   - name: pipeline-repo-url
-                    value: "https://github.com/mtyiska/argo-boot.git" # Pipeline repo
+                    value: "https://github.com/mtyiska/argo_gitops_blue_green.git" # Pipeline repo
                   - name: app-branch
                     value: "main" # Application branch
                   - name: pipeline-branch
