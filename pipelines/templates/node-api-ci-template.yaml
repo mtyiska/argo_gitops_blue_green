@@ -172,6 +172,7 @@ spec:
       - --context=/workspace
       - --destination={{inputs.parameters.image}}:{{inputs.parameters.commit-sha}}
       - --force
+      - --platform=linux/amd64
       volumeMounts:
       - name: workspace
         mountPath: /workspace
